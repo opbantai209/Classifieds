@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chillyads - India's Fast Classifieds Marketplace</title>
+    <meta name="description" content="Buy and sell pre-owned cars, bikes, mobiles, laptops, find jobs and local services on Chillyads - India's verified local classifieds platform." />
+    <meta property="og:title" content="Chillyads - India's Fast Classifieds Marketplace" />
+    <meta property="og:description" content="Buy and sell pre-owned cars, bikes, mobiles, laptops, find jobs and local services on Chillyads - India's verified local classifieds platform." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Organization & E-E-A-T JSON-LD Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Chillyads Marketplace",
+      "url": "https://www.chillyads.com",
+      "logo": "https://www.chillyads.com/logo.png",
+      "publishingPrinciples": "https://www.chillyads.com/editorial-guidelines",
+      "correctionsPolicy": "https://www.chillyads.com/corrections-policy",
+      "knowsAbout": [
+        "Classified Advertisements",
+        "Used Vehicles & Automobiles",
+        "Local Jobs & Employment",
+        "Home Services & Technicians",
+        "Electronics & Mobile Phones",
+        "Real Estate & Property"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "support@chillyads.com",
+        "contactType": "customer support",
+        "availableLanguage": ["en", "hi"]
+      }
+    }
+    </script>
+
+    <!-- IAB TCF v2.2 & US Privacy (CPRA) JavaScript Stubs for Tag Managers & AdSense -->
+    <script>
+      (function() {
+        // IAB TCF v2.2 API stub
+        window.__tcfapi = window.__tcfapi || function(command, version, callback, parameter) {
+          var savedConsent = localStorage.getItem('chilly_cmp_consent');
+          var consentData = savedConsent ? JSON.parse(savedConsent) : {
+            tcString: 'CP1234567890_TCFv2',
+            gdprApplies: true,
+            purpose: { consents: { 1: true, 2: true, 3: true, 4: true } },
+            vendor: { consents: { 1: true, 752: true } }
+          };
+          
+          if (command === 'ping') {
+            if (callback) callback({ gdprApplies: true, cmpLoaded: true, cmpStatus: 'loaded' }, true);
+          } else if (command === 'addEventListener' || command === 'getTCData') {
+            if (callback) callback(consentData, true);
+          } else if (command === 'displayConsentUi' || command === 'renew') {
+            window.dispatchEvent(new CustomEvent('open_cmp_modal'));
+            if (callback) callback(true, true);
+          }
+        };
+
+        // Cookiebot compatibility stub
+        window.Cookiebot = window.Cookiebot || {
+          renew: function() {
+            window.dispatchEvent(new CustomEvent('open_cmp_modal'));
+          }
+        };
+
+        // US Privacy (CPRA/CCPA) signal stub
+        window.__usprivacy = window.__usprivacy || function(command, version, callback) {
+          var usPriv = localStorage.getItem('us_privacy') || '1YNN';
+          if (callback) callback({ usPrivacy: usPriv }, true);
+        };
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

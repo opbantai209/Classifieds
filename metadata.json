@@ -1,0 +1,6 @@
+{
+  "name": "Chillyads",
+  "description": "Commercial-grade Chillyads classifieds marketplace and comprehensive administrative control panel with dynamic categories, listing moderation, trust & safety, and commerce.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
