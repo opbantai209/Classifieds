@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../../context/AppContext';
-import { Category } from '../../../types';
+import { Category, CustomFieldDefinition } from '../../../types';
 import {
   Layers,
   Plus,
@@ -61,13 +61,35 @@ const AVAILABLE_ICONS: { name: string; label: string; icon: React.FC<{ className
 ];
 
 export const CategoriesModule: React.FC = () => {
-  const { listings, categories, addCategory, updateCategory, deleteCategory, toggleCategoryStatus, setActiveSidebarTab, addToast } = useApp();
+  const { listings, categories, customFields, addCustomField, updateCustomField, deleteCustomField, addCategory, updateCategory, deleteCategory, toggleCategoryStatus, setActiveSidebarTab, addToast } = useApp();
   const { path, query } = useRouter();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<'directory' | 'table'>('directory');
+
+  // Subcategory Specifications Modal State
+  const [activeSpecCat, setActiveSpecCat] = useState<Category | null>(null);
+  const [editingSpecId, setEditingSpecId] = useState<string | null>(null);
+  const [newSpecForm, setNewSpecForm] = useState({
+    label: '',
+    name: '',
+    type: 'select' as CustomFieldDefinition['type'],
+    options: '',
+    unit: '',
+    required: true,
+    filterable: true,
+  });
+  const [editSpecForm, setEditSpecForm] = useState({
+    label: '',
+    name: '',
+    type: 'select' as CustomFieldDefinition['type'],
+    options: '',
+    unit: '',
+    required: true,
+    filterable: true,
+  });
 
   // Check URL query params for ?parentId= reactively
   const parentParam = query.parentId || new URLSearchParams(window.location.search).get('parentId');
@@ -443,6 +465,444 @@ export const CategoriesModule: React.FC = () => {
             </div>
           </form>
         </div>
+
+        {/* Specifications & Dynamic Attributes Manager (Appears directly when Editing a Category/Subcategory) */}
+        {editingCategory && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
+                    {editingCategory.name} Specifications
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 font-bold text-xs border border-blue-200 dark:border-blue-800">
+                    {customFields.filter((f) => f.categoryId === editingCategory.id).length} Active Fields
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Manage required, optional, and filterable ad attributes for {editingCategory.name}
+                </p>
+              </div>
+            </div>
+
+            {/* List of Configured Fields */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Configured Dynamic Specification Fields
+              </h4>
+
+              {customFields.filter((f) => f.categoryId === editingCategory.id).length === 0 ? (
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-6 text-center text-slate-500">
+                  <p className="text-xs font-semibold">No custom specification fields configured specifically for {editingCategory.name} yet.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Use the form below to add specifications like Type, Listed by, Plot Area, Facing, etc.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {customFields
+                    .filter((f) => f.categoryId === editingCategory.id)
+                    .map((field) => (
+                      <div
+                        key={field.id}
+                        className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all"
+                      >
+                        {editingSpecId === field.id ? (
+                          /* Inline Edit Form */
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const opts = editSpecForm.options
+                                ? editSpecForm.options.split(',').map((s) => s.trim()).filter(Boolean)
+                                : undefined;
+                              updateCustomField({
+                                ...field,
+                                label: editSpecForm.label,
+                                name: editSpecForm.name,
+                                type: editSpecForm.type,
+                                options: opts,
+                                unit: editSpecForm.unit || undefined,
+                                required: editSpecForm.required,
+                                filterable: editSpecForm.filterable,
+                              });
+                              setEditingSpecId(null);
+                              addToast({ type: 'success', title: 'Specification Updated', message: editSpecForm.label });
+                            }}
+                            className="space-y-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm text-xs"
+                          >
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                              <span className="font-bold text-blue-600">Editing: {field.label}</span>
+                              <button
+                                type="button"
+                                onClick={() => setEditingSpecId(null)}
+                                className="text-slate-400 hover:text-slate-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Field Label *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={editSpecForm.label}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, label: e.target.value })}
+                                  className="w-full text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Variable Name / ID *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={editSpecForm.name}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, name: e.target.value })}
+                                  className="w-full text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-mono"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Input Type</label>
+                                <select
+                                  value={editSpecForm.type}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, type: e.target.value as any })}
+                                  className="w-full text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                                >
+                                  <option value="select">Dropdown Select</option>
+                                  <option value="number">Numeric Input</option>
+                                  <option value="text">Text Input</option>
+                                  <option value="radio">Radio Buttons</option>
+                                  <option value="checkbox">Checkbox</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Unit (Optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Sq. Ft., Ft., Years"
+                                  value={editSpecForm.unit}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, unit: e.target.value })}
+                                  className="w-full text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                                />
+                              </div>
+                              {(editSpecForm.type === 'select' || editSpecForm.type === 'radio') && (
+                                <div className="sm:col-span-2">
+                                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Options (comma-separated)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. For Rent, For Sale or Builder, Dealer, Owner"
+                                    value={editSpecForm.options}
+                                    onChange={(e) => setEditSpecForm({ ...editSpecForm, options: e.target.value })}
+                                    className="w-full text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 pt-1">
+                              <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editSpecForm.required}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, required: e.target.checked })}
+                                  className="rounded text-blue-600"
+                                />
+                                <span>Required Field</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editSpecForm.filterable}
+                                  onChange={(e) => setEditSpecForm({ ...editSpecForm, filterable: e.target.checked })}
+                                  className="rounded text-blue-600"
+                                />
+                                <span>Filterable in Search</span>
+                              </label>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingSpecId(null)}
+                                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-blue-700"
+                              >
+                                Save Specification
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          /* Display Item */
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                  {field.label}
+                                </span>
+                                {field.unit && (
+                                  <span className="text-xs text-slate-400 font-mono">({field.unit})</span>
+                                )}
+                                <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[10px] font-mono text-slate-700 dark:text-slate-300 uppercase">
+                                  {field.type}
+                                </span>
+                              </div>
+                              {field.options && field.options.length > 0 && (
+                                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 flex-wrap">
+                                  <span className="font-semibold text-slate-700 dark:text-slate-300">Options:</span>
+                                  {field.options.map((opt) => (
+                                    <span key={opt} className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-medium">
+                                      {opt}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="text-[11px] text-slate-400 font-mono">Variable ID: {field.name}</div>
+                            </div>
+
+                            {/* ON/OFF Toggles & Action Buttons */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Required ON/OFF Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateCustomField({ ...field, required: !field.required });
+                                  addToast({
+                                    type: 'info',
+                                    title: field.required ? 'Field Optional' : 'Field Required',
+                                    message: `Specification "${field.label}" requirement updated.`,
+                                  });
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
+                                  field.required
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                                    : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                }`}
+                                title="Toggle Required status ON/OFF"
+                              >
+                                <span className={`w-2 h-2 rounded-full ${field.required ? 'bg-rose-500' : 'bg-slate-400'}`} />
+                                <span>{field.required ? 'Required *' : 'Optional'}</span>
+                              </button>
+
+                              {/* Filterable ON/OFF Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateCustomField({ ...field, filterable: !field.filterable });
+                                  addToast({
+                                    type: 'info',
+                                    title: field.filterable ? 'Filter Disabled' : 'Filter Enabled',
+                                    message: `Specification "${field.label}" filter status updated.`,
+                                  });
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
+                                  field.filterable
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                    : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                }`}
+                                title="Toggle Filterable in Search status ON/OFF"
+                              >
+                                <span className={`w-2 h-2 rounded-full ${field.filterable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                <span>{field.filterable ? 'Filterable ON' : 'Filterable OFF'}</span>
+                              </button>
+
+                              {/* Edit Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSpecId(field.id);
+                                  setEditSpecForm({
+                                    label: field.label,
+                                    name: field.name,
+                                    type: field.type,
+                                    options: field.options ? field.options.join(', ') : '',
+                                    unit: field.unit || '',
+                                    required: field.required,
+                                    filterable: field.filterable,
+                                  });
+                                }}
+                                className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                                title="Edit Specification"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteCustomField(field.id);
+                                  addToast({ type: 'warning', title: 'Specification Deleted', message: field.label });
+                                }}
+                                className="p-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Specification"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add New Specification Form */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span>Add New Specification Field to {editingCategory.name}</span>
+              </h4>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newSpecForm.label.trim()) return;
+                  const autoName = newSpecForm.name.trim() || newSpecForm.label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                  const opts =
+                    newSpecForm.type === 'select' || newSpecForm.type === 'radio'
+                      ? newSpecForm.options.split(',').map((s) => s.trim()).filter(Boolean)
+                      : undefined;
+
+                  addCustomField({
+                    categoryId: editingCategory.id,
+                    name: autoName,
+                    label: newSpecForm.label.trim(),
+                    type: newSpecForm.type,
+                    options: opts,
+                    unit: newSpecForm.unit.trim() || undefined,
+                    required: newSpecForm.required,
+                    filterable: newSpecForm.filterable,
+                  });
+
+                  setNewSpecForm({
+                    label: '',
+                    name: '',
+                    type: 'select',
+                    options: '',
+                    unit: '',
+                    required: true,
+                    filterable: true,
+                  });
+
+                  addToast({
+                    type: 'success',
+                    title: 'Specification Created',
+                    message: `Added "${newSpecForm.label}" to ${editingCategory.name}`,
+                  });
+                }}
+                className="space-y-3"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Field Label *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Listed by, Type, Plot Area, Facing"
+                      value={newSpecForm.label}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, label: e.target.value })}
+                      className="w-full text-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Variable Key (Auto-generated if empty)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. type, plot_area, facing"
+                      value={newSpecForm.name}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, name: e.target.value })}
+                      className="w-full text-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Input Type *
+                    </label>
+                    <select
+                      value={newSpecForm.type}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, type: e.target.value as any })}
+                      className="w-full text-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
+                    >
+                      <option value="select">Dropdown Select</option>
+                      <option value="number">Numeric Input</option>
+                      <option value="text">Text Input</option>
+                      <option value="radio">Radio Buttons</option>
+                      <option value="checkbox">Checkbox</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Unit (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Sq. Ft., Ft., Years"
+                      value={newSpecForm.unit}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, unit: e.target.value })}
+                      className="w-full text-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  {(newSpecForm.type === 'select' || newSpecForm.type === 'radio') && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Options (comma-separated) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. For Rent, For Sale or Builder, Dealer, Owner"
+                        value={newSpecForm.options}
+                        onChange={(e) => setNewSpecForm({ ...newSpecForm, options: e.target.value })}
+                        className="w-full text-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-6 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newSpecForm.required}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, required: e.target.checked })}
+                      className="rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Required Field (*)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newSpecForm.filterable}
+                      onChange={(e) => setNewSpecForm({ ...newSpecForm, filterable: e.target.checked })}
+                      className="rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Filterable in Marketplace Search</span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Specification Field to {editingCategory.name}</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -643,7 +1103,7 @@ export const CategoriesModule: React.FC = () => {
                           <button
                             onClick={() => navigateTo(`/admin/marketplace/categories/edit/${sub.id}`)}
                             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-                            title="Edit Subcategory"
+                            title="Edit Subcategory & Manage Specifications"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>

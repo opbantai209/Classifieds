@@ -61,6 +61,36 @@ async function startServer() {
     res.json({ success: true, message: 'Listings reset to initial state' });
   });
 
+  // Delete single listing
+  app.delete('/api/listings/:id', (req, res) => {
+    const deleted = listingsDb.deleteListing(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+    res.json({ success: true, message: 'Listing deleted successfully' });
+  });
+
+  // Bulk listings operations (delete, approve, reject, renew)
+  app.post('/api/listings/bulk-action', async (req, res) => {
+    const { action, ids, data } = req.body || {};
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Action and non-empty IDs array are required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      if (action === 'delete') {
+        const deleted = listingsDb.deleteListing(id);
+        results.push({ id, success: deleted });
+      } else if (action === 'update') {
+        const result = await listingsDb.updateListing(id, data || {});
+        results.push({ id, success: result.success });
+      }
+    }
+
+    res.json({ success: true, results });
+  });
+
   // ====================================================
   // BOOST YOUR AD TO TOP API ENDPOINTS
   // ====================================================

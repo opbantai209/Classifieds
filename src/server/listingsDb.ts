@@ -2,6 +2,7 @@ import { normalizeAdTitle, DUPLICATE_TITLE_ERROR_MESSAGE } from '../utils/adTitl
 import { INITIAL_LISTINGS, INITIAL_PACKAGES } from '../data/initialData';
 import { Listing, PromotionalPackage, OrderTransaction, BoostAnalyticsSummary } from '../types';
 import { isListingBoosted } from '../utils/boostHelper';
+import { seedCategoriesWithTenAds } from '../utils/listingsSeeder';
 
 /**
  * Concurrency Mutex lock to prevent race conditions during simultaneous operations.
@@ -68,7 +69,8 @@ class ListingsDatabase {
     this.transactions.clear();
     this.processedWebhookIds.clear();
 
-    for (const item of INITIAL_LISTINGS) {
+    const seededListings = seedCategoriesWithTenAds(INITIAL_LISTINGS);
+    for (const item of seededListings) {
       this.listings.set(item.id, { ...item });
       if (item.status !== 'sold') {
         const norm = normalizeAdTitle(item.title);
@@ -246,6 +248,14 @@ class ListingsDatabase {
 
   public getListingById(id: string): Listing | undefined {
     return this.listings.get(id);
+  }
+
+  public deleteListing(id: string): boolean {
+    const existing = this.listings.get(id);
+    if (!existing) return false;
+    const indexKey = this.getIndexKey(existing.sellerId, normalizeAdTitle(existing.title));
+    this.uniqueTitleIndex.delete(indexKey);
+    return this.listings.delete(id);
   }
 
   // ==========================================

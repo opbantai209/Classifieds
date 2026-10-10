@@ -5,6 +5,7 @@ import {
   Sun,
   Moon,
   ExternalLink,
+  Globe,
   Shield,
   Code2,
   Bell,
@@ -112,11 +113,11 @@ export const AdminHeader: React.FC = () => {
         {/* Switch to Marketplace View */}
         <button
           onClick={() => navigateTo('/')}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap cursor-pointer"
           title="Exit Admin and View Live Marketplace"
         >
-          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">Marketplace</span>
+          <Globe className="w-3.5 h-3.5 shrink-0" />
+          <span>Back to Live Site</span>
         </button>
 
         {/* Log Out Button */}

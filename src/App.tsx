@@ -30,7 +30,7 @@ import { CmpConsentModal } from './components/common/CmpConsentModal';
 import { UsPrivacyModal } from './components/common/UsPrivacyModal';
 import { EeatSchemaModal } from './components/common/EeatSchemaModal';
 import { useRouter } from './router/useRouter';
-import { parseChillyPath, updateSeoAndCanonical } from './utils/seoAndUrlHelper';
+import { parseChillyPath, updateSeoAndCanonical, findListingById } from './utils/seoAndUrlHelper';
 
 // Module renderer for administrative workspace
 function renderAdminModule(path: string, activeSidebarTab: string) {
@@ -220,7 +220,7 @@ const AppRouter: React.FC = () => {
 
     // 3. Find active listing if on item page
     const activeListing = parsedRoute.listingId
-      ? listings.find((l) => l.id === parsedRoute.listingId)
+      ? findListingById(listings, parsedRoute.listingId)
       : null;
 
     // 4. Update Document SEO & Canonical Link Tag

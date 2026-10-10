@@ -40,6 +40,7 @@ import {
   Bell,
   Code,
   Globe,
+  ExternalLink,
   Database,
   KeyRound,
   History,
@@ -303,6 +304,23 @@ export const AdminSidebar: React.FC = () => {
 
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700">
+        {/* Quick Back to Live Site link above Dashboard */}
+        <button
+          type="button"
+          onClick={() => {
+            navigateTo('/');
+            setMobileSidebarOpen(false);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-xs mb-2 group"
+          title="Return to the live public marketplace"
+        >
+          <div className="flex items-center gap-2.5">
+            <Globe className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span>Back to Live Site</span>
+          </div>
+          <ExternalLink className="w-3.5 h-3.5 text-emerald-400/80" />
+        </button>
+
         {menuSections.map((section) => {
           if (section.isDirect) {
             const isActive = activeSidebarTab === section.tab;

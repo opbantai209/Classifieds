@@ -42,13 +42,20 @@
       (function() {
         // IAB TCF v2.2 API stub
         window.__tcfapi = window.__tcfapi || function(command, version, callback, parameter) {
-          var savedConsent = localStorage.getItem('chilly_cmp_consent');
-          var consentData = savedConsent ? JSON.parse(savedConsent) : {
+          var consentData = {
             tcString: 'CP1234567890_TCFv2',
             gdprApplies: true,
             purpose: { consents: { 1: true, 2: true, 3: true, 4: true } },
             vendor: { consents: { 1: true, 752: true } }
           };
+          try {
+            var savedConsent = localStorage.getItem('chilly_cmp_consent');
+            if (savedConsent) {
+              consentData = JSON.parse(savedConsent);
+            }
+          } catch (err) {
+            console.warn('Invalid CMP consent in localStorage:', err);
+          }
           
           if (command === 'ping') {
             if (callback) callback({ gdprApplies: true, cmpLoaded: true, cmpStatus: 'loaded' }, true);
@@ -69,13 +76,24 @@
 
         // US Privacy (CPRA/CCPA) signal stub
         window.__usprivacy = window.__usprivacy || function(command, version, callback) {
-          var usPriv = localStorage.getItem('us_privacy') || '1YNN';
+          var usPriv = '1YNN';
+          try {
+            usPriv = localStorage.getItem('us_privacy') || '1YNN';
+          } catch (err) {}
           if (callback) callback({ usPrivacy: usPriv }, true);
         };
       })();
     </script>
   </head>
   <body>
+    <noscript>
+      <div style="font-family: sans-serif; text-align: center; padding: 40px; color: #1e293b; max-width: 600px; margin: 40px auto; border: 1px solid #e2e8f0; rounded: 12px; background: #f8fafc;">
+        <h2 style="font-size: 20px; font-weight: 800; color: #0f172a;">JavaScript Required</h2>
+        <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+          Chillyads Marketplace requires JavaScript to run cleanly. Please enable JavaScript in your browser settings to view classified ads, search listings, and contact sellers.
+        </p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -29,6 +29,7 @@ import {
   BookOpen,
   CreditCard,
   Plus,
+  X,
   ShieldCheck,
   AlertCircle,
 } from 'lucide-react';
@@ -80,14 +81,16 @@ export const PostAdPage: React.FC = () => {
     state: '', // Starts completely blank
     city: '', // Starts completely blank
     locality: '',
-    images: [
-      'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=80'
-    ] as string[],
+    images: [] as string[],
     dynamicAttributes: {} as Record<string, any>,
   });
 
-  const handleAddImageField = () => {
-    if (postForm.images.length >= 5) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const remainingSlots = 5 - postForm.images.length;
+    if (remainingSlots <= 0) {
       addToast({
         title: 'Photo Limit Reached',
         message: 'Maximum 5 photos are allowed per listing.',
@@ -95,30 +98,33 @@ export const PostAdPage: React.FC = () => {
       });
       return;
     }
-    setPostForm((prev) => ({
-      ...prev,
-      images: [...prev.images, ''],
-    }));
-  };
 
-  const handleImageChange = (index: number, value: string) => {
-    const updated = [...postForm.images];
-    updated[index] = value;
-    setPostForm((prev) => ({
-      ...prev,
-      images: updated,
-    }));
+    const filesArray = Array.from(files).slice(0, remainingSlots);
+
+    filesArray.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        addToast({
+          title: 'File Too Large',
+          message: `${file.name} is larger than 5MB. Please upload a smaller image.`,
+          type: 'error',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setPostForm((prev) => ({
+            ...prev,
+            images: [...prev.images, reader.result as string],
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleRemoveImage = (index: number) => {
-    if (postForm.images.length <= 1) {
-      addToast({
-        title: 'Minimum 1 Photo Required',
-        message: 'At least 1 photo is required for your classified listing.',
-        type: 'warning',
-      });
-      return;
-    }
     const updated = postForm.images.filter((_, i) => i !== index);
     setPostForm((prev) => ({
       ...prev,
@@ -204,10 +210,16 @@ export const PostAdPage: React.FC = () => {
   const totalFee = isMasterMonetized ? (baseFee + volumeQuotaFee + featuredFee) : 0;
   const requiresPayment = totalFee > 0;
 
-  // Dynamic fields from parent category or subcategory
-  const activeCategoryFields = customFields.filter(
-    (f) => f.categoryId === postForm.categoryId || (postForm.subcategoryId && f.categoryId === postForm.subcategoryId)
-  );
+  // Dynamic fields from parent category or subcategory (prefer subcategory-specific fields if available)
+  const activeCategoryFields = customFields.filter((f) => {
+    if (postForm.subcategoryId) {
+      const subFieldsExist = customFields.some((cf) => cf.categoryId === postForm.subcategoryId);
+      if (subFieldsExist) {
+        return f.categoryId === postForm.subcategoryId;
+      }
+    }
+    return f.categoryId === postForm.categoryId;
+  });
 
   const handleDynamicAttrChange = (key: string, value: any) => {
     setPostForm((prev) => ({
@@ -266,8 +278,16 @@ export const PostAdPage: React.FC = () => {
     const sellerPhone = currentUser?.phone || '+91 98201 54321';
     const sellerAvatar = currentUser?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
 
-    const validImages = postForm.images.filter((img) => img && img.trim() !== '').slice(0, 5);
-    const finalImages = validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=80'];
+    if (postForm.images.length === 0) {
+      addToast({
+        title: 'Photo Required',
+        message: 'Please upload at least 1 photo of your item or service from your device.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    const finalImages = postForm.images.slice(0, 5);
 
     const newAd = addListing({
       title: postForm.title,
@@ -613,7 +633,7 @@ export const PostAdPage: React.FC = () => {
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                   <Tag className="w-4 h-4 text-emerald-600" />
-                  3. {selectedCategory.name} Specifications
+                  3. {selectedSubcategory ? selectedSubcategory.name : selectedCategory.name} Specifications
                 </h2>
                 <span className="text-[11px] text-slate-400 font-mono">Dynamic Category Attributes</span>
               </div>
@@ -622,11 +642,12 @@ export const PostAdPage: React.FC = () => {
                 {activeCategoryFields.map((field: CustomFieldDefinition) => (
                   <div key={field.name}>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {field.label} {field.required && <span className="text-rose-500">*</span>}
+                      {field.label} {field.unit && <span className="text-slate-400 font-normal">({field.unit})</span>} {field.required && <span className="text-rose-500">*</span>}
                     </label>
 
                     {field.type === 'select' && field.options ? (
                       <select
+                        required={field.required}
                         value={postForm.dynamicAttributes[field.name] || ''}
                         onChange={(e) => handleDynamicAttrChange(field.name, e.target.value)}
                         className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
@@ -638,14 +659,39 @@ export const PostAdPage: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    ) : field.type === 'radio' && field.options ? (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {field.options.map((opt: string) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => handleDynamicAttrChange(field.name, opt)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                              postForm.dynamicAttributes[field.name] === opt
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     ) : (
-                      <input
-                        type={field.type === 'number' ? 'number' : 'text'}
-                        value={postForm.dynamicAttributes[field.name] || ''}
-                        onChange={(e) => handleDynamicAttrChange(field.name, e.target.value)}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
+                      <div className="relative">
+                        <input
+                          type={field.type === 'number' ? 'number' : 'text'}
+                          required={field.required}
+                          value={postForm.dynamicAttributes[field.name] || ''}
+                          onChange={(e) => handleDynamicAttrChange(field.name, e.target.value)}
+                          placeholder={`Enter ${field.label.toLowerCase()}${field.unit ? ` (${field.unit})` : ''}`}
+                          className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                        {field.unit && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400 pointer-events-none">
+                            {field.unit}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -700,106 +746,59 @@ export const PostAdPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-500">
-              Add up to 5 photos showing your item or service from different angles. Photo #1 serves as the primary cover image.
+              Upload actual photographs of your item or service directly from your device. Photo #1 serves as the primary cover image.
             </p>
 
-            {/* List of Photo Inputs */}
-            <div className="space-y-3">
-              {postForm.images.map((imgUrl, index) => (
-                <div key={index} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                      <span>Photo #{index + 1}</span>
-                      {index === 0 && (
-                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
-                          Primary Cover Photo
-                        </span>
-                      )}
-                    </label>
-                    {postForm.images.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer flex items-center gap-1"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="url"
-                      required={index === 0}
-                      value={imgUrl}
-                      onChange={(e) => handleImageChange(index, e.target.value)}
-                      placeholder={`https://images.unsplash.com/photo-... (Photo ${index + 1})`}
-                      className="flex-1 text-xs border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 font-mono"
-                    />
-                    {imgUrl && (
-                      <div className="w-12 h-12 rounded-lg border border-slate-300 overflow-hidden bg-slate-900 shrink-0 shadow-xs">
-                        <img src={imgUrl} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                  </div>
+            {/* Custom Device File Upload Zone */}
+            <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 transition-all duration-150 text-center bg-slate-50 relative cursor-pointer group">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={postForm.images.length >= 5}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+              />
+              <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-full shadow-xs border border-slate-100 group-hover:scale-105 transition-transform text-blue-600">
+                  <Upload className="w-6 h-6" />
                 </div>
-              ))}
-            </div>
-
-            {/* Add Photo Button or Limit Reached Notice */}
-            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-100">
-              {postForm.images.length < 5 ? (
-                <button
-                  type="button"
-                  onClick={handleAddImageField}
-                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-emerald-400" />
-                  <span>Add Photo #{postForm.images.length + 1} (Max 5)</span>
-                </button>
-              ) : (
-                <div className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Maximum 5 photos limit reached for this listing.</span>
+                <div className="text-xs font-bold text-slate-800">
+                  {postForm.images.length >= 5 ? 'Photo limit reached' : 'Click to Upload or Drag Photos Here'}
                 </div>
-              )}
-
-              {/* Sample Stock Photo Presets */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-slate-400 font-medium">Quick Presets:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPostForm((prev) => ({
-                      ...prev,
-                      images: [
-                        'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=80',
-                        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=80',
-                        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&auto=format&fit=crop&q=80',
-                      ].slice(0, 5),
-                    }));
-                  }}
-                  className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded"
-                >
-                  Car (3 Photos)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPostForm((prev) => ({
-                      ...prev,
-                      images: [
-                        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=80',
-                        'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&auto=format&fit=crop&q=80',
-                      ].slice(0, 5),
-                    }));
-                  }}
-                  className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded"
-                >
-                  Mobile (2 Photos)
-                </button>
+                <div className="text-[11px] text-slate-500">
+                  Supports PNG, JPG, JPEG, WEBP (Max 5MB each)
+                </div>
               </div>
             </div>
+
+            {/* Render uploaded image previews */}
+            {postForm.images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-2">
+                {postForm.images.map((imgUrl, index) => (
+                  <div key={index} className="relative aspect-square rounded-xl border border-slate-200 overflow-hidden bg-slate-100 group shadow-xs">
+                    <img src={imgUrl} alt={`Uploaded Preview ${index + 1}`} className="w-full h-full object-cover" />
+                    <div className="absolute top-1.5 left-1.5">
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm border ${
+                        index === 0
+                          ? 'bg-emerald-500 text-white border-emerald-600'
+                          : 'bg-white/90 text-slate-800 border-slate-200'
+                      }`}>
+                        {index === 0 ? 'Cover' : `#${index + 1}`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      className="absolute top-1.5 right-1.5 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-md hover:scale-110 transition-transform cursor-pointer"
+                      title="Remove Photo"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Section 6: Confirm Your Location */}

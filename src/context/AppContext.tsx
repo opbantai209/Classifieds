@@ -42,6 +42,7 @@ import {
   INITIAL_NEWSLETTERS,
   INITIAL_CMS_PAGES,
 } from '../data/initialData';
+import { seedCategoriesWithTenAds } from '../utils/listingsSeeder';
 import {
   checkDuplicateAdTitle,
   DUPLICATE_TITLE_ERROR_MESSAGE,
@@ -230,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeUserId, setActiveUserId] = useState<string>(INITIAL_USERS[0].id);
 
   // Collections
-  const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
+  const [listings, setListings] = useState<Listing[]>(seedCategoriesWithTenAds(INITIAL_LISTINGS));
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>(INITIAL_CUSTOM_FIELDS);
   const [locations, setLocations] = useState<LocationItem[]>(INITIAL_LOCATIONS);
@@ -411,6 +412,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [theme]);
 
+  // Load listings from server once on mount to keep in sync with backend
+  useEffect(() => {
+    const syncListingsWithServer = async () => {
+      try {
+        const res = await fetch('/api/listings');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setListings(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync listings with backend:', err);
+      }
+    };
+    syncListingsWithServer();
+  }, []);
+
   // Toast manager
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
     const id = 'toast_' + Math.random().toString(36).substring(2, 9);
@@ -521,6 +540,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Listing Approved & Email Sent',
       message: `"${item.title.substring(0, 35)}..." is live. Approval email with Feature Ad option dispatched to ${sellerEmail}.`,
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    }).catch(() => {});
   };
 
   const rejectListing = (id: string, reason: string) => {
@@ -535,18 +561,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Listing Rejected',
       message: `Reason: ${reason}`,
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected', rejectionReason: reason }),
+    }).catch(() => {});
   };
 
   const featureListing = (id: string, isFeatured: boolean) => {
     const item = listings.find(l => l.id === id);
     if (!item) return;
+    const featuredUntil = isFeatured ? '2026-10-30' : undefined;
     setListings(prev =>
       prev.map(l =>
         l.id === id
           ? {
               ...l,
               isFeatured,
-              featuredUntil: isFeatured ? '2026-10-30' : undefined,
+              featuredUntil,
             }
           : l
       )
@@ -557,6 +591,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: isFeatured ? 'Listing Featured' : 'Feature Status Removed',
       message: item.title.substring(0, 40) + '...',
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFeatured, featuredUntil: featuredUntil || null }),
+    }).catch(() => {});
   };
 
   const markAsSold = (id: string) => {
@@ -571,6 +612,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Marked as Sold',
       message: 'Item has been archived as sold.',
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'sold' }),
+    }).catch(() => {});
   };
 
   const deleteListing = (id: string) => {
@@ -583,6 +631,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Listing Deleted',
       message: 'The listing has been removed.',
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'DELETE',
+    }).catch(() => {});
   };
 
   const updateListing = (updatedListing: Listing): boolean => {
@@ -624,6 +677,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setListings(prev =>
       prev.map(l => (l.id === id ? { ...l, status: 'approved' as const } : l))
     );
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    }).catch(() => {});
   };
 
   const sendEmail = (emailData: Omit<EmailLog, 'id' | 'sentAt' | 'status'>) => {
@@ -988,6 +1048,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     recordAuditLog('MARK_EXPIRED', 'Marketplace / Listings', id, item.title, `Marked as expired. Automated expiry notice email sent.`);
     sendAdExpiredEmail(id);
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'expired', expiresAt: todayStr }),
+    }).catch(() => {});
   };
 
   const renewListing = (id: string, days = 30, isFree = true) => {
@@ -1033,6 +1100,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: '🎉 Ad Renewed for Free!',
       message: `"${item.title.substring(0, 32)}..." is now renewed and active for ${days} days.`,
     });
+
+    // Synchronize with backend API
+    fetch(`/api/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved', expiresAt: newExpires, rejectionReason: null }),
+    }).catch(() => {});
   };
 
   const bulkRenewListings = (ids: string[], days = 30) => {
@@ -1088,6 +1162,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: '✅ Bulk Renewal Completed',
       message: `Successfully renewed ${ids.length} expired listings for ${days} days. Confirmation emails sent to sellers.`,
     });
+
+    // Synchronize with backend API in background
+    fetch('/api/listings/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', ids, data: { status: 'approved', expiresAt: newExpires } }),
+    }).catch(() => {});
   };
 
   const extendExpiration = (id: string, days = 30) => {
@@ -1190,6 +1271,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Bulk Approval Complete',
       message: `Successfully approved ${ids.length} listings.`,
     });
+
+    // Synchronize with backend API in background
+    fetch('/api/listings/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', ids, data: { status: 'approved' } }),
+    }).catch(() => {});
   };
 
   const bulkRejectListings = (ids: string[], reason: string) => {
@@ -1202,6 +1290,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Bulk Rejection Applied',
       message: `Rejected ${ids.length} listings. Reason: ${reason}`,
     });
+
+    // Synchronize with backend API in background
+    fetch('/api/listings/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', ids, data: { status: 'rejected', rejectionReason: reason } }),
+    }).catch(() => {});
   };
 
   const bulkDeleteListings = (ids: string[]) => {
@@ -1212,6 +1307,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: 'Bulk Delete Applied',
       message: `Deleted ${ids.length} listings.`,
     });
+
+    // Synchronize with backend API in background
+    fetch('/api/listings/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', ids }),
+    }).catch(() => {});
   };
 
   // Categories and dynamic attributes

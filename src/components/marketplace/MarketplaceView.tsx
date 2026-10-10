@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Listing } from '../../types';
 import { calculateDistanceKm } from '../../utils/distanceUtils';
@@ -46,10 +46,13 @@ import {
   Menu,
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 import { navigateTo } from '../../router/useRouter';
 import { buildChillyUrl } from '../../utils/seoAndUrlHelper';
 import { CategoryDirectoryGrid } from './CategoryDirectoryGrid';
 import { LocationSelectorInput } from './LocationSelectorInput';
+import { CategorySubNavbar } from './CategorySubNavbar';
+import { SeoContentBlock } from './SeoContentBlock';
 import { Footer } from '../common/Footer';
 
 const ICONS_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -246,6 +249,25 @@ export const MarketplaceView: React.FC = () => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
+  // Filter and sort for the "Latest Ads" section under directory
+  const latestAds = useMemo(() => {
+    // Filter active/approved ads
+    let filtered = listings.filter((l) => l.status === 'approved' || l.isFeatured);
+
+    // Filter by selected city if any
+    if (selectedMarketplaceCity !== 'All India' && selectedMarketplaceCity !== 'All Cities') {
+      const locCity = selectedMarketplaceCity.toLowerCase();
+      filtered = filtered.filter((l) => l.location.city.toLowerCase().includes(locCity));
+    }
+
+    // Sort: Featured ads first, then newest first
+    return filtered.sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }).slice(0, 10);
+  }, [listings, selectedMarketplaceCity]);
+
   const getCategoryIcon = (iconName?: string) => {
     const IconComp = (iconName && ICONS_MAP[iconName]) || Layers;
     return IconComp;
@@ -417,6 +439,13 @@ export const MarketplaceView: React.FC = () => {
           <LocationSelectorInput className="w-full" />
         </div>
       </header>
+
+      {/* OLX Style Horizontal Category Sub-Navbar with "ALL CATEGORIES" dropdown */}
+      <CategorySubNavbar
+        currentCity={selectedMarketplaceCity}
+        activeCategoryId={selectedMarketplaceCategory}
+        activeSubcategoryId={selectedMarketplaceSubcategory}
+      />
 
       {/* Chillyads Mobile Drop Menu / Drawer */}
       {mobileMenuOpen && (
@@ -762,7 +791,7 @@ export const MarketplaceView: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 space-y-6">
         {/* Directory Grid View (Default) */}
         {activeViewMode === 'directory' ? (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-10 animate-in fade-in duration-200">
             <CategoryDirectoryGrid
               categories={categories}
               selectedCategoryId={selectedMarketplaceCategory}
@@ -770,6 +799,79 @@ export const MarketplaceView: React.FC = () => {
               onSelectCategory={handleDirectorySelectCategory}
               onSelectSubcategory={handleDirectorySelectSubcategory}
             />
+
+            {/* Latest Ads Section */}
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <span>Latest Ads {selectedMarketplaceCity !== 'All India' && selectedMarketplaceCity !== 'All Cities' && `in ${selectedMarketplaceCity}`}</span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Freshly posted ads, with featured listings highlighted on top (maximum 10 ads)
+                  </p>
+                </div>
+              </div>
+
+              {latestAds.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-8 text-center text-slate-500">
+                  <p className="text-xs font-semibold">No active ads posted in this city yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {latestAds.map((listing: Listing) => {
+                    const subName = getCategoryName(listing.categoryId, listing.subcategoryId);
+                    return (
+                      <div
+                        key={listing.id}
+                        onClick={() => navigateTo(buildChillyUrl({ listing, categories }))}
+                        className="bg-white rounded-xl border border-slate-200 hover:border-slate-400 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group relative"
+                      >
+                        <div className="relative">
+                          <ImageWithFallback
+                            src={listing.images[0] || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80'}
+                            alt={listing.title}
+                            categoryId={listing.categoryId}
+                            className="w-full h-36 object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                          />
+                          {listing.isFeatured && (
+                            <span className="absolute top-2 left-2 bg-amber-500 text-white font-extrabold text-[8px] uppercase tracking-wider px-2 py-0.5 rounded shadow-xs flex items-center gap-0.5">
+                              <Sparkles className="w-2 h-2 fill-white text-white" />
+                              <span>Featured</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="p-3.5 space-y-1.5 flex-1 flex flex-col justify-between">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider block truncate">
+                              {subName || 'Classified'}
+                            </span>
+                            <h3 className="font-extrabold text-xs text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1" title={listing.title}>
+                              {listing.title}
+                            </h3>
+                            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1 truncate">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{listing.location.locality ? `${listing.location.locality}, ` : ''}{listing.location.city}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1 mt-auto">
+                            <span className="text-xs font-black text-slate-900">
+                              ₹{listing.price.toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-medium shrink-0">
+                              {new Date(listing.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           /* Listings Section (when category/subcategory is selected or user searches) */
@@ -806,6 +908,7 @@ export const MarketplaceView: React.FC = () => {
                           onClick={() => {
                             setSelectedMarketplaceCategory(cat.id);
                             setSelectedMarketplaceSubcategory('all');
+                            setActiveViewMode('listings');
                             const targetUrl = buildChillyUrl({
                               city: selectedMarketplaceCity,
                               categoryId: cat.id,
@@ -837,6 +940,7 @@ export const MarketplaceView: React.FC = () => {
                             <button
                               onClick={() => {
                                 setSelectedMarketplaceSubcategory('all');
+                                setActiveViewMode('listings');
                                 const targetUrl = buildChillyUrl({
                                   city: selectedMarketplaceCity,
                                   categoryId: cat.id,
@@ -862,6 +966,7 @@ export const MarketplaceView: React.FC = () => {
                                   key={sub.id}
                                   onClick={() => {
                                     setSelectedMarketplaceSubcategory(sub.id);
+                                    setActiveViewMode('listings');
                                     const targetUrl = buildChillyUrl({
                                       city: selectedMarketplaceCity,
                                       categoryId: cat.id,
@@ -1190,7 +1295,17 @@ export const MarketplaceView: React.FC = () => {
                     <>
                       <ChevronRight className="w-3 h-3 text-slate-400" />
                       <button
-                        onClick={() => setSelectedMarketplaceSubcategory('all')}
+                        onClick={() => {
+                          setSelectedMarketplaceCategory(activeMainCat.id);
+                          setSelectedMarketplaceSubcategory('all');
+                          const targetUrl = buildChillyUrl({
+                            city: selectedMarketplaceCity,
+                            categoryId: activeMainCat.id,
+                            subcategoryId: 'all',
+                            categories,
+                          });
+                          navigateTo(targetUrl);
+                        }}
                         className={`hover:text-blue-600 font-medium cursor-pointer ${
                           selectedMarketplaceSubcategory === 'all' ? 'text-slate-900 font-bold' : ''
                         }`}
@@ -1288,9 +1403,10 @@ export const MarketplaceView: React.FC = () => {
                     className="bg-white rounded-xl border border-slate-200 hover:border-slate-400 overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
                   >
                     <div className="relative">
-                      <img
+                      <ImageWithFallback
                         src={listing.images[0] || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&auto=format&fit=crop&q=80'}
                         alt={listing.title}
+                        categoryId={listing.categoryId}
                         className="w-full h-44 object-cover group-hover:scale-[1.02] transition-transform duration-200"
                       />
                       {isListingBoosted(listing) && (
@@ -1437,6 +1553,23 @@ export const MarketplaceView: React.FC = () => {
         </div>
         )}
       </main>
+      <SeoContentBlock
+        locationName={selectedMarketplaceCity || 'All India'}
+        categoryName={
+          selectedMarketplaceSubcategory !== 'all'
+            ? categories.find((c) => c.id === selectedMarketplaceSubcategory)?.name || 'Directory'
+            : selectedMarketplaceCategory !== 'all'
+            ? categories.find((c) => c.id === selectedMarketplaceCategory)?.name || 'Directory'
+            : 'Classifieds'
+        }
+        categoryId={
+          selectedMarketplaceSubcategory !== 'all'
+            ? selectedMarketplaceSubcategory
+            : selectedMarketplaceCategory !== 'all'
+            ? selectedMarketplaceCategory
+            : 'home'
+        }
+      />
       <Footer />
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Search, Tag, User, ShoppingBag, ShieldAlert, ArrowRight, X } from 'lucide-react';
+import { ImageWithFallback } from './ImageWithFallback';
 
 export const GlobalSearchModal: React.FC = () => {
   const {
@@ -137,9 +138,10 @@ export const GlobalSearchModal: React.FC = () => {
                     className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer group transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <img
+                      <ImageWithFallback
                         src={item.images[0]}
                         alt=""
+                        categoryId={item.categoryId}
                         className="w-10 h-10 rounded object-cover shrink-0"
                       />
                       <div className="min-w-0">

@@ -149,13 +149,16 @@ export const AttributesModule: React.FC = () => {
               <select
                 value={selectedCatId}
                 onChange={(e) => setSelectedCatId(e.target.value)}
-                className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name} ({cat.slug})
-                  </option>
-                ))}
+                {categories.map((cat) => {
+                  const parent = cat.parentId ? categories.find((c) => c.id === cat.parentId) : null;
+                  return (
+                    <option key={cat.id} value={cat.id}>
+                      {parent ? `${parent.name} → ${cat.name}` : `📂 ${cat.name}`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -320,20 +323,22 @@ export const AttributesModule: React.FC = () => {
           <Layers className="w-3.5 h-3.5" /> Select Target Category
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCatId(cat.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                selectedCatId === cat.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {cat.name} (
-              {customFields.filter((f) => f.categoryId === cat.id).length})
-            </button>
-          ))}
+          {categories.map((cat) => {
+            const parent = cat.parentId ? categories.find((c) => c.id === cat.parentId) : null;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCatId(cat.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  selectedCatId === cat.id
+                    ? 'bg-blue-600 text-white shadow-sm font-bold'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {parent ? `${parent.name} → ${cat.name}` : cat.name} ({customFields.filter((f) => f.categoryId === cat.id).length})
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -387,18 +392,46 @@ export const AttributesModule: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="p-3">
-                        {field.required ? (
-                          <span className="text-rose-500 font-semibold">Required</span>
-                        ) : (
-                          <span className="text-slate-400">Optional</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateCustomField({ ...field, required: !field.required });
+                            addToast({
+                              type: 'info',
+                              title: field.required ? 'Field Optional' : 'Field Required',
+                              message: `Attribute "${field.label}" requirement updated.`,
+                            });
+                          }}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                            field.required
+                              ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                              : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                          }`}
+                          title="Click to toggle Required status ON/OFF"
+                        >
+                          {field.required ? 'Required *' : 'Optional'}
+                        </button>
                       </td>
                       <td className="p-3">
-                        {field.filterable ? (
-                          <Badge variant="success">Yes</Badge>
-                        ) : (
-                          <span className="text-slate-400">No</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateCustomField({ ...field, filterable: !field.filterable });
+                            addToast({
+                              type: 'info',
+                              title: field.filterable ? 'Filter Disabled' : 'Filter Enabled',
+                              message: `Attribute "${field.label}" search filter status updated.`,
+                            });
+                          }}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                            field.filterable
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                              : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                          }`}
+                          title="Click to toggle Search Filter status ON/OFF"
+                        >
+                          {field.filterable ? 'Filter ON' : 'Filter OFF'}
+                        </button>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">

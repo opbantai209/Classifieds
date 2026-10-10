@@ -218,11 +218,22 @@ export const ListingsModule: React.FC<ListingsModuleProps> = ({
   }, [filteredListings, currentPage, pageSize]);
 
   // Selection handlers
+  const isPageAllSelected = useMemo(() => {
+    return paginatedListings.length > 0 && paginatedListings.every((l) => selectedItems.includes(l.id));
+  }, [paginatedListings, selectedItems]);
+
   const toggleSelectAll = () => {
-    if (selectedItems.length === paginatedListings.length) {
-      setSelectedItems([]);
+    if (isPageAllSelected) {
+      // Unselect all on the current page
+      const pageIds = paginatedListings.map((l) => l.id);
+      setSelectedItems((prev) => prev.filter((id) => !pageIds.includes(id)));
     } else {
-      setSelectedItems(paginatedListings.map((l) => l.id));
+      // Select all on the current page
+      const pageIds = paginatedListings.map((l) => l.id);
+      setSelectedItems((prev) => {
+        const otherSelected = prev.filter((id) => !pageIds.includes(id));
+        return [...otherSelected, ...pageIds];
+      });
     }
   };
 
@@ -675,7 +686,7 @@ export const ListingsModule: React.FC<ListingsModuleProps> = ({
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase tracking-wider">
                 <th className="p-3 w-8">
                   <button onClick={toggleSelectAll} className="flex items-center text-slate-400">
-                    {selectedItems.length > 0 && selectedItems.length === paginatedListings.length ? (
+                    {isPageAllSelected ? (
                       <CheckSquare className="w-4 h-4 text-blue-600" />
                     ) : (
                       <Square className="w-4 h-4" />

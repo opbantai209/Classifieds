@@ -37,6 +37,7 @@ import {
   Star,
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 import { navigateTo } from '../../router/useRouter';
 import { DUPLICATE_TITLE_ERROR_MESSAGE } from '../../utils/adTitleValidation';
 import { BoostAdModal } from '../marketplace/BoostAdModal';
@@ -257,10 +258,10 @@ export const UserPanelPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigateTo('/')}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Marketplace</span>
+              <span>Back to Live Site</span>
             </button>
             <div className="h-4 w-[1px] bg-slate-800" />
             <h1 className="text-base font-extrabold tracking-tight flex items-center gap-2">
@@ -904,7 +905,7 @@ export const UserPanelPage: React.FC = () => {
               {userListings.map((l) => (
                 <div key={l.id} className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <img src={l.images[0]} alt={l.title} className="w-12 h-12 rounded-lg object-cover" />
+                    <ImageWithFallback src={l.images[0]} alt={l.title} categoryId={l.categoryId} className="w-12 h-12 rounded-lg object-cover" />
                     <div>
                       <div className="font-extrabold text-xs text-slate-900 dark:text-white">{l.title}</div>
                       <div className="text-[11px] text-slate-500">₹{l.price.toLocaleString('en-IN')} • {l.chatsCount} Enquiry Messages</div>

@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Zap,
+  Globe,
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { navigateTo } from '../../../router/useRouter';
@@ -56,7 +57,14 @@ export const DashboardModule: React.FC = () => {
             Live moderation queue, fraud flags, commerce monetization, and configuration-driven listing engine active.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => navigateTo('/')}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors cursor-pointer"
+          >
+            <Globe className="w-4 h-4" />
+            Back to Live Site
+          </button>
           <button
             onClick={() => {
               setActiveSidebarTab('marketplace/pending');

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../../context/AppContext';
+import { HANDCRAFTED_SEO_CONTENT, SeoContentEntry } from '../../../data/seoContentData';
 import {
   FileText,
   Globe,
@@ -12,6 +13,9 @@ import {
   X,
   Save,
   CheckCircle2,
+  MapPin,
+  Sparkles,
+  Search,
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { CmsPage } from '../../../types';
@@ -19,9 +23,16 @@ import { CmsPage } from '../../../types';
 export const CmsSeoModule: React.FC = () => {
   const { cmsPages, updateCmsPage, addCmsPage, deleteCmsPage, openCmsPageModal, addToast } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'pages' | 'seo'>('pages');
+  const [activeTab, setActiveTab] = useState<'pages' | 'seo' | 'city_content'>('pages');
   const [editingPage, setEditingPage] = useState<CmsPage | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+
+  // Local state for city content manager
+  const [seoContentList, setSeoContentList] = useState<SeoContentEntry[]>(
+    Object.values(HANDCRAFTED_SEO_CONTENT)
+  );
+  const [citySearch, setCitySearch] = useState('');
+  const [editingSeoEntry, setEditingSeoEntry] = useState<SeoContentEntry | null>(null);
 
   // New page form state
   const [newPageData, setNewPageData] = useState<Omit<CmsPage, 'id' | 'updatedAt'>>({
@@ -118,6 +129,18 @@ export const CmsSeoModule: React.FC = () => {
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Footer & Legal Pages ({cmsPages.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('city_content')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            activeTab === 'city_content'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>City & Category Unique Guides ({seoContentList.length})</span>
         </button>
 
         <button
@@ -259,6 +282,181 @@ export const CmsSeoModule: React.FC = () => {
             </button>
           </div>
         </form>
+      )}
+
+      {activeTab === 'city_content' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+                <span>60–100 Word Unique City & Category Guides</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Every city homepage and category landing page displays a distinct, human-written guide above the footer.
+              </p>
+            </div>
+
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search location or category..."
+                value={citySearch}
+                onChange={(e) => setCitySearch(e.target.value)}
+                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 pl-9 pr-3 py-2 text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {seoContentList
+              .filter(
+                (item) =>
+                  !citySearch ||
+                  item.locationKey.toLowerCase().includes(citySearch.toLowerCase()) ||
+                  item.categoryKey.toLowerCase().includes(citySearch.toLowerCase()) ||
+                  item.title.toLowerCase().includes(citySearch.toLowerCase())
+              )
+              .map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-blue-500/50 transition-colors"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span className="capitalize">{item.locationKey.replace(/_/g, ' ')}</span>
+                        <span className="text-slate-300 dark:text-slate-700">•</span>
+                        <span className="text-slate-500 font-medium">{item.categoryKey}</span>
+                      </div>
+
+                      <Badge variant="info">{item.wordCount} Words</Badge>
+                    </div>
+
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                      {item.title}
+                    </h4>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">
+                      {item.content}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400">
+                      Updated: {item.lastUpdated}
+                    </span>
+
+                    <button
+                      onClick={() => setEditingSeoEntry({ ...item })}
+                      className="px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold text-[11px] flex items-center gap-1 hover:bg-blue-100 transition"
+                    >
+                      <Edit3 className="w-3 h-3" /> Edit Guide
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* City SEO Entry Modal */}
+      {editingSeoEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-auto p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-500" />
+                  <span>Edit Local Guide: {editingSeoEntry.locationKey.toUpperCase()}</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Target Category: <code className="text-blue-600">{editingSeoEntry.categoryKey}</code>
+                </p>
+              </div>
+
+              <button
+                onClick={() => setEditingSeoEntry(null)}
+                className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Guide Section Title *</label>
+                <input
+                  type="text"
+                  value={editingSeoEntry.title}
+                  onChange={(e) =>
+                    setEditingSeoEntry({ ...editingSeoEntry, title: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block font-semibold">
+                    Local Guide Paragraph (60–100 Words) *
+                  </label>
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                    {editingSeoEntry.content.trim().split(/\s+/).filter(Boolean).length} Words
+                  </span>
+                </div>
+                <textarea
+                  rows={5}
+                  value={editingSeoEntry.content}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    const words = text.trim().split(/\s+/).filter(Boolean).length;
+                    setEditingSeoEntry({
+                      ...editingSeoEntry,
+                      content: text,
+                      wordCount: words,
+                    });
+                  }}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 leading-relaxed text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingSeoEntry(null)}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 font-semibold"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSeoContentList((prev) =>
+                      prev.map((item) =>
+                        item.id === editingSeoEntry.id
+                          ? { ...editingSeoEntry, lastUpdated: new Date().toISOString().split('T')[0] }
+                          : item
+                      )
+                    );
+                    addToast({
+                      type: 'success',
+                      title: 'Local Guide Updated',
+                      message: `Updated guide for ${editingSeoEntry.locationKey} (${editingSeoEntry.wordCount} words).`,
+                    });
+                    setEditingSeoEntry(null);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow"
+                >
+                  <Save className="w-4 h-4" /> Save Guide Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Page Edit / Create Modal */}
